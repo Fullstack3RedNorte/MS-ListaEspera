@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: ms-lista-espera
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/db_lista_espera
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+  security:
+    user:
+      name: ${SECURITY_USER:admin}
+      password: ${SECURITY_PASSWORD:admin}
+
+server:
+  port: 8081
