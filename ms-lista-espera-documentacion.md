@@ -672,8 +672,26 @@ docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.13-manageme
 # 4. Ejecutar el proyecto
 cd MS-ListaEspera
 mvn spring-boot:run
+
+
 ```
 
+Docker crea un contenedor — piénsalo como una caja aislada que tiene todo lo que necesita adentro. Cuando ejecutaste el comando, Docker descargó una imagen que ya incluye:
+Erlang    ← ya viene instalado adentro del contenedor
+RabbitMQ  ← ya viene instalado adentro del contenedor
+Todo vive dentro de esa caja aislada, completamente independiente de tu Windows. No importa qué versión de Erlang tengas instalada en tu PC — Docker usa la suya propia.
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.13-management
+Qué hace este comando:
+-d              → corre en segundo plano
+--name rabbitmq → nombre del contenedor
+-p 5672:5672    → puerto de mensajería
+-p 15672:15672  → puerto del panel de administración
+rabbitmq:3.13-management → imagen con panel incluido
+
+Espera que descargue la imagen y luego verifica en el navegador:
+http://localhost:15672
+Usuario: guest
+Password: guest
 ---
 
 *Documentación generada para el proyecto semestral Fullstack III — RedNorte — DuocUC 2026*
