@@ -12,6 +12,7 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
@@ -23,9 +24,10 @@ spring:
     password: ${RABBITMQ_PASSWORD:guest}
 
   security:
-    user:
-      name: ${SECURITY_USER:admin}
-      password: ${SECURITY_PASSWORD:admin}
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${IDP_JWKS_URI:http://localhost:9000/.well-known/jwks.json%7D
 
 server:
   port: 8081
