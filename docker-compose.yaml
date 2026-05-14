@@ -1,0 +1,18 @@
+services:
+  ms-lista-espera:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tu-usuario-dockerhub/ms-lista-espera:latest
+    container_name: ms-lista-espera
+    ports:
+      - "8085:8085"
+    environment:
+      SERVER_PORT: 8085
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/db_lista_espera
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: verysecret
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
