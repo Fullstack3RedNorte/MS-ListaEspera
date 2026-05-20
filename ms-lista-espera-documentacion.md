@@ -93,7 +93,7 @@ BFF Gateway (puerto 8080)
     │ JWT validado por JWKS stateless
     │ Circuit Breaker — Resilience4j
     ▼
-MS Lista de Espera (puerto 8081)
+MS Lista de Espera (puerto 8085)
     │
     ├── MySQL — db_lista_espera
     └── RabbitMQ — notificaciones.queue / horas.queue
