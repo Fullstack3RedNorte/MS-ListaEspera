@@ -23,11 +23,11 @@ spring:
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${IDP_JWKS_URI:http://localhost:9000/.well-known/jwks.json%7D
+  # security:
+  #   oauth2:
+  #     resourceserver:
+  #       jwt:
+  #         jwk-set-uri: ${IDP_JWKS_URI:http://localhost:9000/.well-known/jwks.json}
 
 server:
   port: 8085
