@@ -3,7 +3,7 @@ spring:
     name: ms-lista-espera
 
   datasource:
-    url: jdbc:mysql://localhost:3306/db_lista_espera
+    url: ${DB_URL:jdbc:mysql://localhost:3306/db_lista_espera?createDatabaseIfNotExist=true}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
