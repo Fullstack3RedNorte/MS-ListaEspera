@@ -30,7 +30,10 @@ public class SolicitudController {
             @Valid @RequestBody CrearSolicitudRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        String rutFuncionario = jwt.getClaimAsString("rut");
+        String rutFuncionario = (jwt != null)
+            ? jwt.getClaimAsString("rut")
+            : "11111111-1";
+
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(solicitudService.crear(request, rutFuncionario));
@@ -63,7 +66,10 @@ public class SolicitudController {
             @Valid @RequestBody CambiarEstadoRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        String rutFuncionario = jwt.getClaimAsString("rut");
+        String rutFuncionario = (jwt != null)
+            ? jwt.getClaimAsString("rut")
+            : "11111111-1";
+
         return ResponseEntity.ok(
             solicitudService.cambiarEstado(id, request, rutFuncionario)
         );
