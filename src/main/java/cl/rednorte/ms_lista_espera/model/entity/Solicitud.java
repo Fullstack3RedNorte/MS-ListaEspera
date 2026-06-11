@@ -59,6 +59,11 @@ public class Solicitud {
     @Column(nullable = false)
     private LocalDateTime fechaActualizacion;
 
+    // Fecha y hora asignada cuando la solicitud pasa a estado CITADO.
+    // Nullable: solo tiene valor cuando la solicitud ha sido citada al menos una vez.
+    @Column
+    private LocalDateTime fechaCita;
+
     @PrePersist//se ejecuta antes de que la entidad se guarde por primera vez en la base de datos y asigna las fechas
     protected void onCreate() {
         fechaRegistro = LocalDateTime.now();

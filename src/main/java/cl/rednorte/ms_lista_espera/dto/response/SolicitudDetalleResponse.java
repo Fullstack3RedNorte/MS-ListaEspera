@@ -23,5 +23,6 @@ public class SolicitudDetalleResponse {
     private EstadoSolicitud estado;
     private LocalDateTime fechaRegistro;
     private LocalDateTime fechaActualizacion;
+    private LocalDateTime fechaCita; // null si la solicitud aún no ha sido citada
     private List<HistorialEstadoResponse> historial;
 }
