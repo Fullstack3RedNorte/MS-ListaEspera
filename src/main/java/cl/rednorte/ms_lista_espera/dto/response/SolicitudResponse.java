@@ -13,4 +13,5 @@ public class SolicitudResponse {
     private Integer prioridad;
     private EstadoSolicitud estado;
     private LocalDateTime fechaRegistro;
+    private LocalDateTime fechaCita; // null si la solicitud aún no ha sido citada
 }

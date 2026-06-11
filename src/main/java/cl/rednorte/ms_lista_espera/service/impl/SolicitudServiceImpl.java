@@ -24,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -137,8 +138,30 @@ public class SolicitudServiceImpl implements SolicitudService {
                 "El motivo es obligatorio para el estado " + request.getNuevoEstado());
         }
 
+        // Validación cruzada: fechaCita es obligatoria y futura al pasar a CITADO
+        if (EstadoSolicitud.CITADO.equals(request.getNuevoEstado())) {
+            if (request.getFechaCita() == null) {
+                throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "La fechaCita es obligatoria al citar al paciente");
+            }
+            if (!request.getFechaCita().isAfter(LocalDateTime.now())) {
+                throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "La fechaCita debe ser una fecha y hora futura");
+            }
+        }
+
         EstadoSolicitud estadoAnterior = solicitud.getEstado();
         solicitud.setEstado(request.getNuevoEstado());
+
+        // Persistir fechaCita solo cuando se cita al paciente.
+        // En otras transiciones (ATENDIDO, CERRADO, etc.) la fechaCita
+        // se conserva como dato histórico de cuándo fue la cita.
+        if (EstadoSolicitud.CITADO.equals(request.getNuevoEstado())) {
+            solicitud.setFechaCita(request.getFechaCita());
+        }
+
         solicitudRepository.save(solicitud);
 
         registrarHistorial(solicitud, estadoAnterior, request.getNuevoEstado(),
@@ -212,6 +235,7 @@ public class SolicitudServiceImpl implements SolicitudService {
         response.setPrioridad(solicitud.getPrioridad());
         response.setEstado(solicitud.getEstado());
         response.setFechaRegistro(solicitud.getFechaRegistro());
+        response.setFechaCita(solicitud.getFechaCita());
         return response;
     }
 
@@ -235,6 +259,7 @@ public class SolicitudServiceImpl implements SolicitudService {
         response.setEstado(solicitud.getEstado());
         response.setFechaRegistro(solicitud.getFechaRegistro());
         response.setFechaActualizacion(solicitud.getFechaActualizacion());
+        response.setFechaCita(solicitud.getFechaCita());
 
         List<HistorialEstadoResponse> historial = historialEstadoRepository
                 .findBySolicitudIdOrderByFechaCambioAsc(solicitud.getId())
