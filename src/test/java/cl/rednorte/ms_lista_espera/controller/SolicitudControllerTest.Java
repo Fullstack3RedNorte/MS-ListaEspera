@@ -1,5 +1,6 @@
 package cl.rednorte.ms_lista_espera.controller;
 
+import cl.rednorte.ms_lista_espera.config.SecurityConfig;
 import cl.rednorte.ms_lista_espera.dto.request.CambiarEstadoRequest;
 import cl.rednorte.ms_lista_espera.dto.request.CrearSolicitudRequest;
 import cl.rednorte.ms_lista_espera.dto.response.SolicitudDetalleResponse;
@@ -9,47 +10,45 @@ import cl.rednorte.ms_lista_espera.enums.NivelUrgencia;
 import cl.rednorte.ms_lista_espera.service.SolicitudService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(SolicitudController.class)
+@Import(SecurityConfig.class)
 class SolicitudControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
-    @Mock private SolicitudService solicitudService;
-    @InjectMocks private SolicitudController solicitudController;
-
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(solicitudController).build();
-        objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-    }
+    @MockBean
+    private SolicitudService solicitudService;
 
     @Test
+    @WithMockUser
     void crear_requestValido_debeRetornar201() throws Exception {
         CrearSolicitudRequest request = new CrearSolicitudRequest();
         request.setRutPaciente("12345678-9");
         request.setEspecialidadId(1L);
         request.setDiagnostico("Dolor torácico");
         request.setEsGES(false);
-        request.setNivelUrgencia(NivelUrgencia.NORMAL);
+        request.setNivelUrgencia(NivelUrgencia.ELECTIVA);
         request.setEsVulnerable(false);
 
         SolicitudResponse response = new SolicitudResponse();
@@ -59,6 +58,7 @@ class SolicitudControllerTest {
         when(solicitudService.crear(any(), anyString())).thenReturn(response);
 
         mockMvc.perform(post("/solicitudes")
+                .with(jwt().jwt(j -> j.claim("rut", "11111111-1")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
@@ -66,6 +66,7 @@ class SolicitudControllerTest {
     }
 
     @Test
+    @WithMockUser
     void obtenerDetalle_idExistente_debeRetornar200() throws Exception {
         SolicitudDetalleResponse detalle = new SolicitudDetalleResponse();
         detalle.setId(1L);
@@ -74,12 +75,14 @@ class SolicitudControllerTest {
 
         when(solicitudService.obtenerDetalle(1L)).thenReturn(detalle);
 
-        mockMvc.perform(get("/solicitudes/1"))
+        mockMvc.perform(get("/solicitudes/1")
+                .with(jwt()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.rutPaciente").value("12345678-9"));
     }
 
     @Test
+    @WithMockUser
     void cambiarEstado_requestValido_debeRetornar200() throws Exception {
         CambiarEstadoRequest request = new CambiarEstadoRequest();
         request.setNuevoEstado(EstadoSolicitud.CITADO);
@@ -92,6 +95,7 @@ class SolicitudControllerTest {
         when(solicitudService.cambiarEstado(eq(1L), any(), anyString())).thenReturn(detalle);
 
         mockMvc.perform(patch("/solicitudes/1/estado")
+                .with(jwt().jwt(j -> j.claim("rut", "11111111-1")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
