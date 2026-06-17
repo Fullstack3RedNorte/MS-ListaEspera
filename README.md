@@ -6,7 +6,7 @@ Documentación de las pruebas unitarias implementadas para el microservicio **MS
 
 ![Reporte JaCoCo](docs/jacoco-reporte.png)
 
-| Paquete | Instrucciones | Ramas |
+| Paquete | Instruccion | Ramas |
 |---|---|---|
 | `service.impl` | 72% | 54% |
 | `controller` | 56% | 50% |
