@@ -4,7 +4,7 @@ Documentación de las pruebas unitarias implementadas para el microservicio **MS
 
 ## Cobertura JaCoCo
 
-
+![Reporte JaCoCo](docs/jacoco-reporte.png)
 
 | Paquete | Instrucciones | Ramas |
 |---|---|---|
