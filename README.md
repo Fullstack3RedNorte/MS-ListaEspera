@@ -1,108 +1,101 @@
 # Pruebas Unitarias — MS-ListaEspera
 
-## Descripción General
+Documentación de las pruebas unitarias implementadas para el microservicio **MS-ListaEspera**, rama `pruebas-unitarias`.
 
-Este documento describe las pruebas unitarias implementadas para el microservicio **MS-ListaEspera**, perteneciente al sistema RedNorte. Las pruebas están organizadas en dos clases principales que cubren la capa de servicio y la capa de controlador, usando **JUnit 5**, **Mockito** y **MockMvc** sin necesidad de levantar contexto Spring ni base de datos.
+## Cobertura JaCoCo
 
-***
 
-## Tecnologías Utilizadas
 
-| Herramienta | Versión | Propósito |
+| Paquete | Instrucciones | Ramas |
 |---|---|---|
-| JUnit 5 | Incluida en Spring Boot 3.x | Framework de pruebas |
-| Mockito | Incluida en Spring Boot 3.x | Mocking de dependencias |
-| AssertJ | Incluida en Spring Boot 3.x | Assertions fluidas |
-| MockMvc (standalone) | Incluida en Spring Boot 3.x | Pruebas de controlador sin contexto |
+| `service.impl` | 72% | 54% |
+| `controller` | 56% | 50% |
+| **Total** | **71%** | **53%** |
 
 ***
 
-## Estructura de Archivos
+## Tecnologías utilizadas
+
+- **JUnit 5** — framework de pruebas
+- **Mockito** — mocking de dependencias
+- **MockMvc** — pruebas de capa HTTP del controller
+- **JaCoCo** — reporte de cobertura de código
+
+***
+
+## Estructura de los tests
 
 ```
 src/test/java/cl/rednorte/ms_lista_espera/
-├── MsListaEsperaApplicationTests.java         ← Test de contexto (deshabilitado, requiere MySQL/RabbitMQ)
 ├── controller/
-│   └── SolicitudControllerTest.java           ← Pruebas de la capa controlador
+│   └── SolicitudControllerTest.java
 └── service/
     └── impl/
-        └── SolicitudServiceImplTest.java      ← Pruebas de la capa de servicio
+        └── SolicitudServiceImplTest.java
 ```
 
 ***
 
-## Clase 1: SolicitudServiceImplTest
+## SolicitudServiceImplTest
 
-Prueba la lógica de negocio de `SolicitudServiceImpl` aislando todas las dependencias con mocks.
+Pruebas unitarias para la lógica de negocio del servicio. Usa `@ExtendWith(MockitoExtension.class)` con mocks de todos los repositorios.
 
-**Configuración:** `@ExtendWith(MockitoExtension.class)` — no levanta contexto Spring.
+### Casos cubiertos
 
-**Dependencias mockeadas:** `SolicitudRepository`, `EspecialidadRepository`, `TipoVulnerabilidadRepository`, `HistorialEstadoRepository`.
+#### `crear()`
+| Test | Escenario | Resultado esperado |
+|---|---|---|
+| `crear_solicitudNormal_debeRetornarResponse` | Request válido, especialidad existe | Retorna `SolicitudResponse` con estado `EN_ESPERA` |
+| `crear_especialidadNoExiste_debeArrojarNotFound` | `especialidadId` inexistente | Lanza `ResponseStatusException` 404 |
+| `crear_esGES_debeTenerPrioridadUno` | Solicitud con `esGES = true` | Prioridad calculada = 1 |
 
-### Casos de prueba
+#### `obtenerDetalle()`
+| Test | Escenario | Resultado esperado |
+|---|---|---|
+| `obtenerDetalle_idExistente_debeRetornarDetalle` | ID válido en base de datos | Retorna `SolicitudDetalleResponse` con datos del paciente |
+| `obtenerDetalle_idNoExistente_debeArrojarNotFound` | ID inexistente | Lanza `ResponseStatusException` 404 |
 
-| Método del test | Método testeado | Escenario | Resultado esperado |
+#### `cambiarEstado()`
+| Test | Escenario | Resultado esperado |
+|---|---|---|
+| `cambiarEstado_transicionValidaEnEsperaACitado_debeActualizar` | Transición `EN_ESPERA → CITADO` con fecha futura | Retorna detalle con estado `CITADO` |
+| `cambiarEstado_transicionInvalida_debeArrojarBadRequest` | Solicitud `CERRADO → CITADO` | Lanza `ResponseStatusException` 400 |
+| `cambiarEstado_anuladoSinMotivo_debeArrojarUnprocessable` | Estado `ANULADO` sin motivo | Lanza `ResponseStatusException` con mensaje de motivo obligatorio |
+| `cambiarEstado_citadoConFechaPasada_debeArrojarUnprocessable` | `fechaCita` en el pasado | Lanza `ResponseStatusException` con mensaje de fecha futura |
+
+***
+
+## SolicitudControllerTest
+
+Pruebas unitarias para la capa HTTP del controller. Usa `@WebMvcTest` con `MockMvc` y un `SecurityFilterChain` de test que deshabilita la autenticación JWT.
+
+### Casos cubiertos
+
+| Test | Método HTTP | Endpoint | Resultado esperado |
 |---|---|---|---|
-| `crear_solicitudNormal_debeRetornarResponse` | `crear()` | Request válido con datos normales | Retorna `SolicitudResponse` con estado `EN_ESPERA` |
-| `crear_especialidadNoExiste_debeArrojarNotFound` | `crear()` | `especialidadId` inexistente | Lanza `ResponseStatusException` 404 |
-| `crear_esGES_debeTenerPrioridadUno` | `crear()` | Solicitud con `esGES = true` | Retorna prioridad = 1 |
-| `obtenerDetalle_idExistente_debeRetornarDetalle` | `obtenerDetalle()` | ID válido existente | Retorna `SolicitudDetalleResponse` con datos correctos |
-| `obtenerDetalle_idNoExistente_debeArrojarNotFound` | `obtenerDetalle()` | ID inexistente | Lanza `ResponseStatusException` 404 |
-| `cambiarEstado_transicionValidaEnEsperaACitado_debeActualizar` | `cambiarEstado()` | Transición válida `EN_ESPERA → CITADO` con fecha futura | Retorna estado `CITADO` |
-| `cambiarEstado_transicionInvalida_debeArrojarBadRequest` | `cambiarEstado()` | Transición inválida desde `CERRADO` | Lanza `ResponseStatusException` 400 |
-| `cambiarEstado_anuladoSinMotivo_debeArrojarUnprocessable` | `cambiarEstado()` | Estado `ANULADO` sin motivo | Lanza `ResponseStatusException` 422 |
-| `cambiarEstado_citadoConFechaPasada_debeArrojarUnprocessable` | `cambiarEstado()` | `fechaCita` en el pasado | Lanza `ResponseStatusException` 422 |
+| `crear_requestValido_debeRetornar201` | `POST` | `/solicitudes` | HTTP 201 + estado `EN_ESPERA` en JSON |
+| `listar_sinFiltros_debeRetornar200` | `GET` | `/solicitudes` | HTTP 200 + página vacía |
+| `obtenerDetalle_idExistente_debeRetornar200` | `GET` | `/solicitudes/1` | HTTP 200 + `rutPaciente` en JSON |
+| `cambiarEstado_requestValido_debeRetornar200` | `PATCH` | `/solicitudes/1/estado` | HTTP 200 + estado `CITADO` en JSON |
 
 ***
 
-## Clase 2: SolicitudControllerTest
-
-Prueba los endpoints REST de `SolicitudController` usando MockMvc en modo standalone (sin contexto Spring ni seguridad activa).
-
-**Configuración:** `@ExtendWith(MockitoExtension.class)` + `MockMvcBuilders.standaloneSetup()`.
-
-**Dependencias mockeadas:** `SolicitudService`.
-
-### Casos de prueba
-
-| Método del test | Endpoint | Escenario | Resultado esperado |
-|---|---|---|---|
-| `crear_requestValido_debeRetornar201` | `POST /solicitudes` | Request válido con todos los campos | HTTP 201, body con estado `EN_ESPERA` |
-| `obtenerDetalle_idExistente_debeRetornar200` | `GET /solicitudes/{id}` | ID existente | HTTP 200, body con `rutPaciente` correcto |
-| `cambiarEstado_requestValido_debeRetornar200` | `PATCH /solicitudes/{id}/estado` | Cambio de estado válido a `CITADO` | HTTP 200, body con estado `CITADO` |
-
-***
-
-## Lógica de Negocio Cubierta
-
-Las pruebas verifican las siguientes reglas críticas del sistema:
-
-- **Cálculo de prioridad:** Las solicitudes GES reciben prioridad 1 (máxima urgencia).
-- **Validación de especialidad:** No se puede crear una solicitud con una especialidad inexistente.
-- **Transiciones de estado:** Solo se permiten las transiciones definidas en `esTransicionValida()`.
-- **Motivo obligatorio:** Los estados `ANULADO` y `DERIVADO` requieren motivo.
-- **Fecha de cita futura:** Al citar un paciente, la `fechaCita` debe ser posterior al momento actual.
-
-***
-
-## Cómo Ejecutar las Pruebas
+## Cómo ejecutar las pruebas
 
 ```bash
-# Ejecutar todos los tests
+# Ejecutar todos los tests y generar reporte JaCoCo
 ./mvnw test
 
-# Ejecutar solo el test de servicio
-./mvnw test -Dtest=SolicitudServiceImplTest
-
-# Ejecutar solo el test de controlador
-./mvnw test -Dtest=SolicitudControllerTest
+# Ver reporte de cobertura
+start target/site/jacoco/index.html   # Windows
+open target/site/jacoco/index.html    # Mac/Linux
 ```
 
-### Resultado esperado
+***
 
-```
-Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
-```
+## Cómo ejecutar un test específico
 
-> **Nota:** `MsListaEsperaApplicationTests` está deshabilitado intencionalmente, ya que el test de contexto completo requiere conexión activa a MySQL y RabbitMQ.
+```bash
+./mvnw test -Dtest="cl.rednorte.ms_lista_espera.service.impl.SolicitudServiceImplTest"
+./mvnw test -Dtest="cl.rednorte.ms_lista_espera.controller.SolicitudControllerTest"
+```
