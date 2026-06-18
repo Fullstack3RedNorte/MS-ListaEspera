@@ -15,6 +15,8 @@ import cl.rednorte.ms_lista_espera.repository.TipoVulnerabilidadRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,6 +40,9 @@ class SolicitudServiceImplTest {
     @InjectMocks
     private SolicitudServiceImpl solicitudService;
 
+    @Captor
+    private ArgumentCaptor<Solicitud> solicitudCaptor;
+
     private Especialidad especialidadMock;
     private Solicitud solicitudMock;
 
@@ -56,8 +61,6 @@ class SolicitudServiceImplTest {
         solicitudMock.setPrioridad(4);
     }
 
-    // ──── CREAR ────
-
     @Test
     void crear_solicitudNormal_debeRetornarResponse() {
         CrearSolicitudRequest request = new CrearSolicitudRequest();
@@ -69,7 +72,7 @@ class SolicitudServiceImplTest {
         request.setEsVulnerable(false);
 
         when(especialidadRepository.findById(1L)).thenReturn(Optional.of(especialidadMock));
-        when(solicitudRepository.save(any())).thenReturn(solicitudMock);
+        when(solicitudRepository.save(any(Solicitud.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(historialEstadoRepository.save(any())).thenReturn(null);
 
         SolicitudResponse response = solicitudService.crear(request, "11111111-1");
@@ -101,22 +104,16 @@ class SolicitudServiceImplTest {
         request.setNivelUrgencia(NivelUrgencia.ELECTIVA);
         request.setEsVulnerable(false);
 
-        Solicitud solicitudGES = new Solicitud();
-        solicitudGES.setId(2L);
-        solicitudGES.setEspecialidad(especialidadMock);
-        solicitudGES.setEstado(EstadoSolicitud.EN_ESPERA);
-        solicitudGES.setPrioridad(1);
-
         when(especialidadRepository.findById(1L)).thenReturn(Optional.of(especialidadMock));
-        when(solicitudRepository.save(any())).thenReturn(solicitudGES);
+        when(solicitudRepository.save(any(Solicitud.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(historialEstadoRepository.save(any())).thenReturn(null);
 
         SolicitudResponse response = solicitudService.crear(request, "11111111-1");
 
+        verify(solicitudRepository).save(solicitudCaptor.capture());
+        assertThat(solicitudCaptor.getValue().getPrioridad()).isEqualTo(1);
         assertThat(response.getPrioridad()).isEqualTo(1);
     }
-
-    // ──── OBTENER DETALLE ────
 
     @Test
     void obtenerDetalle_idExistente_debeRetornarDetalle() {
@@ -138,8 +135,6 @@ class SolicitudServiceImplTest {
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Solicitud no encontrada");
     }
-
-    // ──── CAMBIAR ESTADO ────
 
     @Test
     void cambiarEstado_transicionValidaEnEsperaACitado_debeActualizar() {
@@ -194,7 +189,7 @@ class SolicitudServiceImplTest {
     void cambiarEstado_citadoConFechaPasada_debeArrojarUnprocessable() {
         CambiarEstadoRequest request = new CambiarEstadoRequest();
         request.setNuevoEstado(EstadoSolicitud.CITADO);
-        request.setFechaCita(LocalDateTime.now().minusDays(1)); // fecha pasada
+        request.setFechaCita(LocalDateTime.now().minusDays(1));
 
         when(solicitudRepository.findById(1L)).thenReturn(Optional.of(solicitudMock));
 
