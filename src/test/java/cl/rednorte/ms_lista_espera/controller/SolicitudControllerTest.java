@@ -1,47 +1,62 @@
 package cl.rednorte.ms_lista_espera.controller;
-
-import cl.rednorte.ms_lista_espera.config.SecurityConfig;
 import cl.rednorte.ms_lista_espera.dto.request.CambiarEstadoRequest;
 import cl.rednorte.ms_lista_espera.dto.request.CrearSolicitudRequest;
+import cl.rednorte.ms_lista_espera.dto.response.PageResponse;
 import cl.rednorte.ms_lista_espera.dto.response.SolicitudDetalleResponse;
 import cl.rednorte.ms_lista_espera.dto.response.SolicitudResponse;
 import cl.rednorte.ms_lista_espera.enums.EstadoSolicitud;
 import cl.rednorte.ms_lista_espera.enums.NivelUrgencia;
 import cl.rednorte.ms_lista_espera.service.SolicitudService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(SolicitudController.class)
-@Import(SecurityConfig.class)
+@Import(SolicitudControllerTest.SecurityTestConfig.class)
 class SolicitudControllerTest {
+
+    @TestConfiguration
+    static class SecurityTestConfig {
+        @Bean
+        SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+            http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+            return http.build();
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @MockBean
     private SolicitudService solicitudService;
 
     @Test
-    @WithMockUser
     void crear_requestValido_debeRetornar201() throws Exception {
         CrearSolicitudRequest request = new CrearSolicitudRequest();
         request.setRutPaciente("12345678-9");
@@ -55,10 +70,9 @@ class SolicitudControllerTest {
         response.setId(1L);
         response.setEstado(EstadoSolicitud.EN_ESPERA);
 
-        when(solicitudService.crear(any(), anyString())).thenReturn(response);
+        when(solicitudService.crear(any(CrearSolicitudRequest.class), anyString())).thenReturn(response);
 
         mockMvc.perform(post("/solicitudes")
-                .with(jwt().jwt(j -> j.claim("rut", "11111111-1")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
@@ -66,7 +80,19 @@ class SolicitudControllerTest {
     }
 
     @Test
-    @WithMockUser
+    void listar_sinFiltros_debeRetornar200() throws Exception {
+        PageResponse<SolicitudResponse> pageResponse = new PageResponse<>(
+                Collections.emptyList(), 0L, 0, 0
+        );
+
+        when(solicitudService.listar(any(), any(), any(), any())).thenReturn(pageResponse);
+
+        mockMvc.perform(get("/solicitudes"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
     void obtenerDetalle_idExistente_debeRetornar200() throws Exception {
         SolicitudDetalleResponse detalle = new SolicitudDetalleResponse();
         detalle.setId(1L);
@@ -75,14 +101,12 @@ class SolicitudControllerTest {
 
         when(solicitudService.obtenerDetalle(1L)).thenReturn(detalle);
 
-        mockMvc.perform(get("/solicitudes/1")
-                .with(jwt()))
+        mockMvc.perform(get("/solicitudes/{id}", 1L))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.rutPaciente").value("12345678-9"));
     }
 
     @Test
-    @WithMockUser
     void cambiarEstado_requestValido_debeRetornar200() throws Exception {
         CambiarEstadoRequest request = new CambiarEstadoRequest();
         request.setNuevoEstado(EstadoSolicitud.CITADO);
@@ -92,10 +116,10 @@ class SolicitudControllerTest {
         detalle.setId(1L);
         detalle.setEstado(EstadoSolicitud.CITADO);
 
-        when(solicitudService.cambiarEstado(eq(1L), any(), anyString())).thenReturn(detalle);
+        when(solicitudService.cambiarEstado(eq(1L), any(CambiarEstadoRequest.class), anyString()))
+                .thenReturn(detalle);
 
-        mockMvc.perform(patch("/solicitudes/1/estado")
-                .with(jwt().jwt(j -> j.claim("rut", "11111111-1")))
+        mockMvc.perform(patch("/solicitudes/{id}/estado", 1L)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
