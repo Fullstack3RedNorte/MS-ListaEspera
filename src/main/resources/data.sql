@@ -53,7 +53,7 @@ WHERE NOT EXISTS (SELECT 1 FROM tipos_vulnerabilidad);
 
 INSERT INTO solicitudes (
     rut_paciente, rut_funcionario, especialidad_id, diagnostico,
-    es_g_e_s, patologia_g_e_s, nivel_urgencia,
+    esges, patologiages, nivel_urgencia,
     es_vulnerable, tipo_vulnerabilidad_id, prioridad, estado,
     fecha_registro, fecha_actualizacion, fecha_cita
 )
@@ -63,8 +63,8 @@ SELECT * FROM (
         '11111111-1'   AS rut_funcionario,
         1              AS especialidad_id,
         'Dolor torácico crónico con sospecha de cardiopatía isquémica' AS diagnostico,
-        true           AS es_g_e_s,
-        'Infarto agudo al miocardio' AS patologia_g_e_s,
+        true           AS esges,
+        'Infarto agudo al miocardio' AS patologiages,
         'GES'          AS nivel_urgencia,
         false          AS es_vulnerable,
         NULL           AS tipo_vulnerabilidad_id,
