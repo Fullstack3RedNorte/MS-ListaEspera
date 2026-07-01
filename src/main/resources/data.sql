@@ -1,5 +1,6 @@
 -- ===========================================================
 -- data.sql — Datos iniciales del MS Lista de Espera
+-- Generado automáticamente: 60 solicitudes sobre ~24 meses
 -- ===========================================================
 -- Se ejecuta automáticamente al arrancar Spring Boot,
 -- después de que Hibernate cree las tablas (gracias a
@@ -8,47 +9,48 @@
 -- Todos los INSERT usan "WHERE NOT EXISTS" para que el archivo
 -- sea idempotente: si la tabla ya tiene datos, no se duplican.
 --
--- ⚠️ Para que las solicitudes y el historial se carguen bien,
--- la BD debe estar limpia al arrancar. Si ya tienes datos viejos,
--- ejecuta antes:  docker compose down -v
+-- ⚠️ Para regenerar desde cero:  docker compose down -v
 -- ===========================================================
 
 
--- ===========================================================
 -- 1. ESPECIALIDADES (4 registros)
--- ===========================================================
 INSERT INTO especialidades (nombre, descripcion, activo)
 SELECT * FROM (
-    SELECT 'Cardiología', 'Especialidad del corazón', true UNION ALL
-    SELECT 'Broncopulmonar', 'Especialidad del sistema respiratorio', true UNION ALL
-    SELECT 'Traumatología', 'Especialidad del sistema músculo esquelético', true UNION ALL
-    SELECT 'Neurología', 'Especialidad del sistema nervioso', true
+    SELECT 'Cardiología',    'Especialidad del corazón',                       true UNION ALL
+    SELECT 'Broncopulmonar', 'Especialidad del sistema respiratorio',          true UNION ALL
+    SELECT 'Traumatología',  'Especialidad del sistema músculo esquelético',   true UNION ALL
+    SELECT 'Neurología',     'Especialidad del sistema nervioso',              true
 ) AS nuevas
 WHERE NOT EXISTS (SELECT 1 FROM especialidades);
 
 
--- ===========================================================
 -- 2. TIPOS DE VULNERABILIDAD (3 registros)
--- ===========================================================
 INSERT INTO tipos_vulnerabilidad (nombre, descripcion)
 SELECT * FROM (
     SELECT 'Adulto mayor', 'Paciente mayor de 65 años' UNION ALL
-    SELECT 'Embarazada', 'Paciente en estado de gestación' UNION ALL
+    SELECT 'Embarazada',   'Paciente en estado de gestación' UNION ALL
     SELECT 'Discapacidad', 'Paciente con discapacidad física o mental'
 ) AS nuevas
 WHERE NOT EXISTS (SELECT 1 FROM tipos_vulnerabilidad);
 
 
 -- ===========================================================
--- 3. SOLICITUDES FICTICIAS (6 registros)
+-- 3. SOLICITUDES FICTICIAS (60 registros — ~24 meses)
 -- ===========================================================
--- Cobertura de escenarios:
---   #1 GES en espera (prioridad 1, sin fecha_cita)
---   #2 URGENTE vulnerable en espera (prioridad 2, sin fecha_cita)
---   #3 Vulnerable embarazada CITADA (prioridad 3, fecha_cita +7d)
---   #4 ELECTIVA común CITADA (prioridad 4, fecha_cita +15d)
---   #5 GES ATENDIDA (cita ya pasó, -5d)
---   #6 URGENTE ANULADA con motivo (sin fecha_cita)
+-- Distribución por estado:
+--   EN_ESPERA : 10
+--   CITADO    : 10
+--   ATENDIDO  : 12
+--   CERRADO   : 10
+--   AUSENTE   :  6
+--   ANULADO   :  6
+--   DERIVADO  :  4
+--   VENCIDO   :  2
+-- Distribución por prioridad:
+--   P1 GES       : 15
+--   P2 URGENTE   : 12
+--   P3 VULNERABLE: 15
+--   P4 ELECTIVA  : 18
 -- ===========================================================
 
 INSERT INTO solicitudes (
@@ -58,77 +60,135 @@ INSERT INTO solicitudes (
     fecha_registro, fecha_actualizacion, fecha_cita
 )
 SELECT * FROM (
-    SELECT
-        '12345678-9'   AS rut_paciente,
-        '11111111-1'   AS rut_funcionario,
-        1              AS especialidad_id,
-        'Dolor torácico crónico con sospecha de cardiopatía isquémica' AS diagnostico,
-        true           AS esges,
-        'Infarto agudo al miocardio' AS patologiages,
-        'GES'          AS nivel_urgencia,
-        false          AS es_vulnerable,
-        NULL           AS tipo_vulnerabilidad_id,
-        1              AS prioridad,
-        'EN_ESPERA'    AS estado,
-        DATE_SUB(NOW(), INTERVAL 10 DAY) AS fecha_registro,
-        DATE_SUB(NOW(), INTERVAL 10 DAY) AS fecha_actualizacion,
-        NULL           AS fecha_cita
+    SELECT '15710248-1' AS rut_paciente, '11111111-1' AS rut_funcionario, 3 AS especialidad_id, 'Hombro doloroso con limitación funcional' AS diagnostico, false AS esges, NULL AS patologiages, 'ELECTIVA' AS nivel_urgencia, false AS es_vulnerable, NULL AS tipo_vulnerabilidad_id, 4 AS prioridad, 'CERRADO' AS estado, DATE_SUB(NOW(), INTERVAL 256 DAY) AS fecha_registro, DATE_SUB(NOW(), INTERVAL 229 DAY) AS fecha_actualizacion, DATE_SUB(NOW(), INTERVAL 235 DAY) AS fecha_cita
     UNION ALL
-    SELECT
-        '98765432-1', '11111111-1', 2,
-        'Dificultad respiratoria severa en paciente vulnerable',
-        false, NULL, 'URGENTE',
-        true, 1, 2, 'EN_ESPERA',
-        DATE_SUB(NOW(), INTERVAL 8 DAY),
-        DATE_SUB(NOW(), INTERVAL 8 DAY),
-        NULL
+    SELECT '11457765-5', '11111111-1', 1, 'Insuficiencia cardíaca en estudio', false, NULL, 'ELECTIVA', false, NULL, 4, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 314 DAY), DATE_SUB(NOW(), INTERVAL 234 DAY), DATE_SUB(NOW(), INTERVAL 235 DAY)
     UNION ALL
-    SELECT
-        '11222333-4', '11111111-1', 3,
-        'Esguince severo en paciente embarazada',
-        false, NULL, 'ELECTIVA',
-        true, 2, 3, 'CITADO',
-        DATE_SUB(NOW(), INTERVAL 15 DAY),
-        DATE_SUB(NOW(), INTERVAL 2 DAY),
-        DATE_ADD(NOW(), INTERVAL 7 DAY)
+    SELECT '21510878-6', '11111111-1', 1, 'Soplo cardíaco en evaluación', false, NULL, 'URGENTE', false, NULL, 2, 'DERIVADO', DATE_SUB(NOW(), INTERVAL 235 DAY), DATE_SUB(NOW(), INTERVAL 137 DAY), DATE_SUB(NOW(), INTERVAL 140 DAY)
     UNION ALL
-    SELECT
-        '22333444-5', '11111111-1', 4,
-        'Cefaleas recurrentes sin causa identificada',
-        false, NULL, 'ELECTIVA',
-        false, NULL, 4, 'CITADO',
-        DATE_SUB(NOW(), INTERVAL 20 DAY),
-        DATE_SUB(NOW(), INTERVAL 5 DAY),
-        DATE_ADD(NOW(), INTERVAL 15 DAY)
+    SELECT '7876966-3', '11111111-1', 2, 'Apnea del sueño en evaluación', false, NULL, 'URGENTE', false, NULL, 2, 'CITADO', DATE_SUB(NOW(), INTERVAL 176 DAY), DATE_SUB(NOW(), INTERVAL 147 DAY), DATE_ADD(NOW(), INTERVAL 27 DAY)
     UNION ALL
-    SELECT
-        '33444555-6', '11111111-1', 1,
-        'Arritmia cardíaca diagnosticada en control rutinario',
-        true, 'Arritmia cardíaca confirmada', 'GES',
-        false, NULL, 1, 'ATENDIDO',
-        DATE_SUB(NOW(), INTERVAL 30 DAY),
-        DATE_SUB(NOW(), INTERVAL 5 DAY),
-        DATE_SUB(NOW(), INTERVAL 5 DAY)
+    SELECT '16558837-3', '11111111-1', 3, 'Gonartrosis bilateral avanzada', false, NULL, 'ELECTIVA', false, NULL, 4, 'CITADO', DATE_SUB(NOW(), INTERVAL 147 DAY), DATE_SUB(NOW(), INTERVAL 142 DAY), DATE_ADD(NOW(), INTERVAL 9 DAY)
     UNION ALL
-    SELECT
-        '44555666-7', '11111111-1', 3,
-        'Esguince severo de tobillo derecho',
-        false, NULL, 'URGENTE',
-        false, NULL, 2, 'ANULADO',
-        DATE_SUB(NOW(), INTERVAL 12 DAY),
-        DATE_SUB(NOW(), INTERVAL 11 DAY),
-        NULL
+    SELECT '24836388-8', '11111111-1', 4, 'Crisis convulsiva en estudio', false, NULL, 'ELECTIVA', true, 2, 3, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 301 DAY), DATE_SUB(NOW(), INTERVAL 266 DAY), DATE_SUB(NOW(), INTERVAL 268 DAY)
+    UNION ALL
+    SELECT '9679214-2', '11111111-1', 4, 'Temblor esencial de manos', false, NULL, 'URGENTE', false, NULL, 2, 'DERIVADO', DATE_SUB(NOW(), INTERVAL 201 DAY), DATE_SUB(NOW(), INTERVAL 122 DAY), DATE_SUB(NOW(), INTERVAL 123 DAY)
+    UNION ALL
+    SELECT '18805018-9', '11111111-1', 4, 'Vértigo persistente en evaluación', false, NULL, 'ELECTIVA', true, 3, 3, 'VENCIDO', DATE_SUB(NOW(), INTERVAL 245 DAY), DATE_SUB(NOW(), INTERVAL 136 DAY), NULL
+    UNION ALL
+    SELECT '14953167-K', '11111111-1', 3, 'Hombro doloroso con limitación funcional', false, NULL, 'ELECTIVA', false, NULL, 4, 'CERRADO', DATE_SUB(NOW(), INTERVAL 71 DAY), DATE_SUB(NOW(), INTERVAL 0 DAY), DATE_SUB(NOW(), INTERVAL 6 DAY)
+    UNION ALL
+    SELECT '9570554-K', '11111111-1', 3, 'Hombro doloroso con limitación funcional', false, NULL, 'URGENTE', true, 1, 2, 'CITADO', DATE_SUB(NOW(), INTERVAL 400 DAY), DATE_SUB(NOW(), INTERVAL 392 DAY), DATE_ADD(NOW(), INTERVAL 19 DAY)
+    UNION ALL
+    SELECT '11420686-8', '11111111-1', 2, 'Asma bronquial mal controlada', false, NULL, 'URGENTE', false, NULL, 2, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 49 DAY), DATE_SUB(NOW(), INTERVAL 49 DAY), NULL
+    UNION ALL
+    SELECT '18179613-4', '11111111-1', 1, 'Soplo cardíaco en evaluación', false, NULL, 'ELECTIVA', false, NULL, 4, 'CERRADO', DATE_SUB(NOW(), INTERVAL 391 DAY), DATE_SUB(NOW(), INTERVAL 329 DAY), DATE_SUB(NOW(), INTERVAL 344 DAY)
+    UNION ALL
+    SELECT '23874652-2', '11111111-1', 2, 'Neumonía recurrente en último año', true, 'Asma bronquial en menores de 15 años', 'GES', false, NULL, 1, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 117 DAY), DATE_SUB(NOW(), INTERVAL 24 DAY), DATE_SUB(NOW(), INTERVAL 24 DAY)
+    UNION ALL
+    SELECT '13106768-8', '11111111-1', 4, 'Vértigo persistente en evaluación', true, 'Ataque cerebrovascular isquémico', 'GES', false, NULL, 1, 'AUSENTE', DATE_SUB(NOW(), INTERVAL 301 DAY), DATE_SUB(NOW(), INTERVAL 217 DAY), DATE_SUB(NOW(), INTERVAL 220 DAY)
+    UNION ALL
+    SELECT '18529912-7', '11111111-1', 2, 'Apnea del sueño en evaluación', false, NULL, 'ELECTIVA', true, 3, 3, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 349 DAY), DATE_SUB(NOW(), INTERVAL 270 DAY), DATE_SUB(NOW(), INTERVAL 272 DAY)
+    UNION ALL
+    SELECT '24586522-3', '11111111-1', 4, 'Cefaleas recurrentes sin causa identificada', false, NULL, 'ELECTIVA', false, NULL, 4, 'ANULADO', DATE_SUB(NOW(), INTERVAL 183 DAY), DATE_SUB(NOW(), INTERVAL 182 DAY), NULL
+    UNION ALL
+    SELECT '7975475-3', '11111111-1', 1, 'Palpitaciones frecuentes con antecedentes familiares', false, NULL, 'ELECTIVA', true, 1, 3, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 41 DAY), DATE_SUB(NOW(), INTERVAL 41 DAY), NULL
+    UNION ALL
+    SELECT '22287807-3', '11111111-1', 1, 'Hipertensión arterial de difícil manejo', true, 'Infarto agudo al miocardio', 'GES', false, NULL, 1, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 556 DAY), DATE_SUB(NOW(), INTERVAL 512 DAY), DATE_SUB(NOW(), INTERVAL 514 DAY)
+    UNION ALL
+    SELECT '20463677-5', '11111111-1', 4, 'Crisis convulsiva en estudio', false, NULL, 'ELECTIVA', true, 3, 3, 'ANULADO', DATE_SUB(NOW(), INTERVAL 127 DAY), DATE_SUB(NOW(), INTERVAL 108 DAY), DATE_SUB(NOW(), INTERVAL 113 DAY)
+    UNION ALL
+    SELECT '17385106-1', '11111111-1', 1, 'Dolor torácico crónico con sospecha de cardiopatía isquémica', false, NULL, 'URGENTE', false, NULL, 2, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 26 DAY), DATE_SUB(NOW(), INTERVAL 26 DAY), NULL
+    UNION ALL
+    SELECT '21523222-3', '11111111-1', 2, 'Neumonía recurrente en último año', true, 'EPOC de tratamiento ambulatorio', 'GES', false, NULL, 1, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 173 DAY), DATE_SUB(NOW(), INTERVAL 124 DAY), DATE_SUB(NOW(), INTERVAL 125 DAY)
+    UNION ALL
+    SELECT '24139121-0', '11111111-1', 1, 'Insuficiencia cardíaca en estudio', false, NULL, 'ELECTIVA', false, NULL, 4, 'CITADO', DATE_SUB(NOW(), INTERVAL 291 DAY), DATE_SUB(NOW(), INTERVAL 285 DAY), DATE_ADD(NOW(), INTERVAL 4 DAY)
+    UNION ALL
+    SELECT '22151708-3', '11111111-1', 2, 'Tos crónica de más de 8 semanas', false, NULL, 'ELECTIVA', false, NULL, 4, 'VENCIDO', DATE_SUB(NOW(), INTERVAL 596 DAY), DATE_SUB(NOW(), INTERVAL 474 DAY), NULL
+    UNION ALL
+    SELECT '21267547-4', '11111111-1', 1, 'Arritmia detectada en electrocardiograma de rutina', false, NULL, 'ELECTIVA', false, NULL, 4, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 418 DAY), DATE_SUB(NOW(), INTERVAL 383 DAY), DATE_SUB(NOW(), INTERVAL 384 DAY)
+    UNION ALL
+    SELECT '24193052-0', '11111111-1', 4, 'Crisis convulsiva en estudio', false, NULL, 'URGENTE', false, NULL, 2, 'CERRADO', DATE_SUB(NOW(), INTERVAL 254 DAY), DATE_SUB(NOW(), INTERVAL 198 DAY), DATE_SUB(NOW(), INTERVAL 208 DAY)
+    UNION ALL
+    SELECT '11282565-0', '11111111-1', 1, 'Soplo cardíaco en evaluación', false, NULL, 'ELECTIVA', true, 1, 3, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 518 DAY), DATE_SUB(NOW(), INTERVAL 420 DAY), DATE_SUB(NOW(), INTERVAL 422 DAY)
+    UNION ALL
+    SELECT '8280388-K', '11111111-1', 1, 'Arritmia detectada en electrocardiograma de rutina', false, NULL, 'ELECTIVA', false, NULL, 4, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 5 DAY), NULL
+    UNION ALL
+    SELECT '8750906-6', '11111111-1', 4, 'Cefaleas recurrentes sin causa identificada', false, NULL, 'ELECTIVA', false, NULL, 4, 'AUSENTE', DATE_SUB(NOW(), INTERVAL 613 DAY), DATE_SUB(NOW(), INTERVAL 551 DAY), DATE_SUB(NOW(), INTERVAL 551 DAY)
+    UNION ALL
+    SELECT '19280369-2', '11111111-1', 3, 'Fractura de radio consolidada en control', false, NULL, 'ELECTIVA', true, 3, 3, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 239 DAY), DATE_SUB(NOW(), INTERVAL 193 DAY), DATE_SUB(NOW(), INTERVAL 194 DAY)
+    UNION ALL
+    SELECT '9354814-1', '11111111-1', 4, 'Temblor esencial de manos', false, NULL, 'ELECTIVA', true, 2, 3, 'ANULADO', DATE_SUB(NOW(), INTERVAL 328 DAY), DATE_SUB(NOW(), INTERVAL 309 DAY), NULL
+    UNION ALL
+    SELECT '18399271-4', '11111111-1', 3, 'Lumbago crónico con irradiación', false, NULL, 'ELECTIVA', true, 3, 3, 'CITADO', DATE_SUB(NOW(), INTERVAL 188 DAY), DATE_SUB(NOW(), INTERVAL 183 DAY), DATE_ADD(NOW(), INTERVAL 10 DAY)
+    UNION ALL
+    SELECT '16045483-K', '11111111-1', 3, 'Hombro doloroso con limitación funcional', true, 'Traumatismo grave de columna', 'GES', false, NULL, 1, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 571 DAY), DATE_SUB(NOW(), INTERVAL 517 DAY), DATE_SUB(NOW(), INTERVAL 519 DAY)
+    UNION ALL
+    SELECT '13067558-5', '11111111-1', 2, 'Asma bronquial mal controlada', true, 'Asma bronquial en menores de 15 años', 'GES', false, NULL, 1, 'CERRADO', DATE_SUB(NOW(), INTERVAL 169 DAY), DATE_SUB(NOW(), INTERVAL 104 DAY), DATE_SUB(NOW(), INTERVAL 110 DAY)
+    UNION ALL
+    SELECT '20212844-4', '11111111-1', 3, 'Hombro doloroso con limitación funcional', true, 'Órtesis para personas de 65 años y más', 'GES', false, NULL, 1, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 287 DAY), DATE_SUB(NOW(), INTERVAL 267 DAY), DATE_SUB(NOW(), INTERVAL 269 DAY)
+    UNION ALL
+    SELECT '20350791-8', '11111111-1', 3, 'Lumbago crónico con irradiación', true, 'Traumatismo grave de columna', 'GES', false, NULL, 1, 'ANULADO', DATE_SUB(NOW(), INTERVAL 236 DAY), DATE_SUB(NOW(), INTERVAL 218 DAY), NULL
+    UNION ALL
+    SELECT '18388832-9', '11111111-1', 1, 'Palpitaciones frecuentes con antecedentes familiares', true, 'Arritmia cardíaca confirmada', 'GES', false, NULL, 1, 'CITADO', DATE_SUB(NOW(), INTERVAL 289 DAY), DATE_SUB(NOW(), INTERVAL 285 DAY), DATE_ADD(NOW(), INTERVAL 29 DAY)
+    UNION ALL
+    SELECT '18006085-3', '11111111-1', 2, 'Disnea progresiva en paciente con antecedente tabáquico', false, NULL, 'ELECTIVA', true, 2, 3, 'CERRADO', DATE_SUB(NOW(), INTERVAL 375 DAY), DATE_SUB(NOW(), INTERVAL 272 DAY), DATE_SUB(NOW(), INTERVAL 287 DAY)
+    UNION ALL
+    SELECT '13943586-2', '11111111-1', 1, 'Hipertensión arterial de difícil manejo', false, NULL, 'ELECTIVA', true, 3, 3, 'AUSENTE', DATE_SUB(NOW(), INTERVAL 603 DAY), DATE_SUB(NOW(), INTERVAL 527 DAY), DATE_SUB(NOW(), INTERVAL 528 DAY)
+    UNION ALL
+    SELECT '19814801-K', '11111111-1', 2, 'Sospecha de EPOC en estudio funcional', false, NULL, 'ELECTIVA', false, NULL, 4, 'CERRADO', DATE_SUB(NOW(), INTERVAL 85 DAY), DATE_SUB(NOW(), INTERVAL 0 DAY), DATE_SUB(NOW(), INTERVAL 12 DAY)
+    UNION ALL
+    SELECT '13463637-3', '11111111-1', 2, 'Asma bronquial mal controlada', false, NULL, 'ELECTIVA', false, NULL, 4, 'ANULADO', DATE_SUB(NOW(), INTERVAL 85 DAY), DATE_SUB(NOW(), INTERVAL 61 DAY), DATE_SUB(NOW(), INTERVAL 64 DAY)
+    UNION ALL
+    SELECT '13636837-3', '11111111-1', 4, 'Temblor esencial de manos', false, NULL, 'ELECTIVA', false, NULL, 4, 'CITADO', DATE_SUB(NOW(), INTERVAL 166 DAY), DATE_SUB(NOW(), INTERVAL 137 DAY), DATE_ADD(NOW(), INTERVAL 28 DAY)
+    UNION ALL
+    SELECT '23092818-6', '11111111-1', 2, 'Sospecha de EPOC en estudio funcional', true, 'EPOC de tratamiento ambulatorio', 'GES', false, NULL, 1, 'AUSENTE', DATE_SUB(NOW(), INTERVAL 315 DAY), DATE_SUB(NOW(), INTERVAL 282 DAY), DATE_SUB(NOW(), INTERVAL 284 DAY)
+    UNION ALL
+    SELECT '9637385-9', '11111111-1', 3, 'Esguince severo de tobillo derecho', false, NULL, 'ELECTIVA', true, 3, 3, 'DERIVADO', DATE_SUB(NOW(), INTERVAL 327 DAY), DATE_SUB(NOW(), INTERVAL 262 DAY), DATE_SUB(NOW(), INTERVAL 264 DAY)
+    UNION ALL
+    SELECT '12377985-4', '11111111-1', 1, 'Insuficiencia cardíaca en estudio', false, NULL, 'URGENTE', false, NULL, 2, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 58 DAY), DATE_SUB(NOW(), INTERVAL 58 DAY), NULL
+    UNION ALL
+    SELECT '8347931-K', '11111111-1', 4, 'Cefaleas recurrentes sin causa identificada', true, 'Enfermedad de Parkinson', 'GES', false, NULL, 1, 'ATENDIDO', DATE_SUB(NOW(), INTERVAL 581 DAY), DATE_SUB(NOW(), INTERVAL 535 DAY), DATE_SUB(NOW(), INTERVAL 536 DAY)
+    UNION ALL
+    SELECT '19703392-5', '11111111-1', 3, 'Dolor cervical con parestesias', false, NULL, 'ELECTIVA', false, NULL, 4, 'CERRADO', DATE_SUB(NOW(), INTERVAL 187 DAY), DATE_SUB(NOW(), INTERVAL 109 DAY), DATE_SUB(NOW(), INTERVAL 121 DAY)
+    UNION ALL
+    SELECT '11839388-9', '11111111-1', 4, 'Neuropatía diabética en control', false, NULL, 'URGENTE', true, 2, 2, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 48 DAY), DATE_SUB(NOW(), INTERVAL 48 DAY), NULL
+    UNION ALL
+    SELECT '16812889-7', '11111111-1', 1, 'Hipertensión arterial de difícil manejo', false, NULL, 'ELECTIVA', true, 2, 3, 'CERRADO', DATE_SUB(NOW(), INTERVAL 353 DAY), DATE_SUB(NOW(), INTERVAL 286 DAY), DATE_SUB(NOW(), INTERVAL 298 DAY)
+    UNION ALL
+    SELECT '17247051-1', '11111111-1', 2, 'Apnea del sueño en evaluación', false, NULL, 'URGENTE', false, NULL, 2, 'ANULADO', DATE_SUB(NOW(), INTERVAL 349 DAY), DATE_SUB(NOW(), INTERVAL 329 DAY), NULL
+    UNION ALL
+    SELECT '6819580-0', '11111111-1', 2, 'Apnea del sueño en evaluación', false, NULL, 'ELECTIVA', false, NULL, 4, 'AUSENTE', DATE_SUB(NOW(), INTERVAL 347 DAY), DATE_SUB(NOW(), INTERVAL 310 DAY), DATE_SUB(NOW(), INTERVAL 311 DAY)
+    UNION ALL
+    SELECT '19906332-K', '11111111-1', 4, 'Vértigo persistente en evaluación', true, 'Ataque cerebrovascular isquémico', 'GES', false, NULL, 1, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 30 DAY), DATE_SUB(NOW(), INTERVAL 30 DAY), NULL
+    UNION ALL
+    SELECT '9576476-6', '11111111-1', 4, 'Pérdida de memoria progresiva', false, NULL, 'ELECTIVA', true, 3, 3, 'DERIVADO', DATE_SUB(NOW(), INTERVAL 309 DAY), DATE_SUB(NOW(), INTERVAL 241 DAY), DATE_SUB(NOW(), INTERVAL 244 DAY)
+    UNION ALL
+    SELECT '10072118-7', '11111111-1', 4, 'Cefaleas recurrentes sin causa identificada', true, 'Enfermedad de Parkinson', 'GES', false, NULL, 1, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 16 DAY), DATE_SUB(NOW(), INTERVAL 16 DAY), NULL
+    UNION ALL
+    SELECT '20850299-9', '11111111-1', 4, 'Neuropatía diabética en control', true, 'Enfermedad de Parkinson', 'GES', false, NULL, 1, 'CITADO', DATE_SUB(NOW(), INTERVAL 296 DAY), DATE_SUB(NOW(), INTERVAL 274 DAY), DATE_ADD(NOW(), INTERVAL 13 DAY)
+    UNION ALL
+    SELECT '21927431-7', '11111111-1', 4, 'Vértigo persistente en evaluación', false, NULL, 'ELECTIVA', false, NULL, 4, 'CITADO', DATE_SUB(NOW(), INTERVAL 238 DAY), DATE_SUB(NOW(), INTERVAL 230 DAY), DATE_ADD(NOW(), INTERVAL 26 DAY)
+    UNION ALL
+    SELECT '8599909-4', '11111111-1', 4, 'Neuropatía diabética en control', false, NULL, 'URGENTE', true, 3, 2, 'CITADO', DATE_SUB(NOW(), INTERVAL 132 DAY), DATE_SUB(NOW(), INTERVAL 121 DAY), DATE_ADD(NOW(), INTERVAL 17 DAY)
+    UNION ALL
+    SELECT '18852531-2', '11111111-1', 3, 'Fractura de radio consolidada en control', true, 'Traumatismo grave de columna', 'GES', false, NULL, 1, 'AUSENTE', DATE_SUB(NOW(), INTERVAL 112 DAY), DATE_SUB(NOW(), INTERVAL 84 DAY), DATE_SUB(NOW(), INTERVAL 85 DAY)
+    UNION ALL
+    SELECT '24207008-7', '11111111-1', 4, 'Pérdida de memoria progresiva', false, NULL, 'ELECTIVA', true, 1, 3, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 22 DAY), DATE_SUB(NOW(), INTERVAL 22 DAY), NULL
+    UNION ALL
+    SELECT '22004784-0', '11111111-1', 1, 'Soplo cardíaco en evaluación', false, NULL, 'URGENTE', true, 3, 2, 'EN_ESPERA', DATE_SUB(NOW(), INTERVAL 25 DAY), DATE_SUB(NOW(), INTERVAL 25 DAY), NULL
+    UNION ALL
+    SELECT '13400050-7', '11111111-1', 3, 'Gonartrosis bilateral avanzada', false, NULL, 'ELECTIVA', false, NULL, 4, 'CERRADO', DATE_SUB(NOW(), INTERVAL 489 DAY), DATE_SUB(NOW(), INTERVAL 382 DAY), DATE_SUB(NOW(), INTERVAL 393 DAY)
 ) AS nuevas
 WHERE NOT EXISTS (SELECT 1 FROM solicitudes);
 
 
 -- ===========================================================
--- 4. HISTORIAL DE ESTADOS (12 registros)
+-- 4. HISTORIAL DE ESTADOS
 -- ===========================================================
--- Una entrada inicial (EN_ESPERA) por cada solicitud,
--- más las transiciones posteriores cuando aplican.
--- Los IDs 1..6 corresponden a las solicitudes insertadas arriba
--- (asumiendo BD limpia).
+-- 158 entradas — una por cada transición de cada solicitud.
+-- Los IDs 1..60 corresponden a las solicitudes de arriba
+-- (asumiendo BD limpia al arrancar).
 -- ===========================================================
 
 INSERT INTO historial_estados (
@@ -136,49 +196,320 @@ INSERT INTO historial_estados (
     fecha_cambio, rut_usuario_responsable
 )
 SELECT * FROM (
-    -- Solicitud #1: EN_ESPERA (1 entrada)
-    SELECT
-        1            AS solicitud_id,
-        NULL         AS estado_anterior,
-        'EN_ESPERA'  AS estado_nuevo,
-        NULL         AS motivo,
-        DATE_SUB(NOW(), INTERVAL 10 DAY) AS fecha_cambio,
-        '11111111-1' AS rut_usuario_responsable
+    SELECT 1 AS solicitud_id, NULL AS estado_anterior, 'EN_ESPERA' AS estado_nuevo, NULL AS motivo, DATE_SUB(NOW(), INTERVAL 256 DAY) AS fecha_cambio, '11111111-1' AS rut_usuario_responsable
     UNION ALL
-    -- Solicitud #2: EN_ESPERA (1 entrada)
-    SELECT 2, NULL, 'EN_ESPERA', NULL,
-           DATE_SUB(NOW(), INTERVAL 8 DAY), '11111111-1'
+    SELECT 1, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 247 DAY), '11111111-1'
     UNION ALL
-    -- Solicitud #3: EN_ESPERA → CITADO (2 entradas)
-    SELECT 3, NULL, 'EN_ESPERA', NULL,
-           DATE_SUB(NOW(), INTERVAL 15 DAY), '11111111-1'
+    SELECT 1, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 233 DAY), '11111111-1'
     UNION ALL
-    SELECT 3, 'EN_ESPERA', 'CITADO', NULL,
-           DATE_SUB(NOW(), INTERVAL 2 DAY), '11111111-1'
+    SELECT 1, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 229 DAY), '11111111-1'
     UNION ALL
-    -- Solicitud #4: EN_ESPERA → CITADO (2 entradas)
-    SELECT 4, NULL, 'EN_ESPERA', NULL,
-           DATE_SUB(NOW(), INTERVAL 20 DAY), '11111111-1'
+    SELECT 2, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 314 DAY), '11111111-1'
     UNION ALL
-    SELECT 4, 'EN_ESPERA', 'CITADO', NULL,
-           DATE_SUB(NOW(), INTERVAL 5 DAY), '11111111-1'
+    SELECT 2, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 280 DAY), '11111111-1'
     UNION ALL
-    -- Solicitud #5: EN_ESPERA → CITADO → ATENDIDO (3 entradas)
-    SELECT 5, NULL, 'EN_ESPERA', NULL,
-           DATE_SUB(NOW(), INTERVAL 30 DAY), '11111111-1'
+    SELECT 2, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 234 DAY), '11111111-1'
     UNION ALL
-    SELECT 5, 'EN_ESPERA', 'CITADO', NULL,
-           DATE_SUB(NOW(), INTERVAL 20 DAY), '11111111-1'
+    SELECT 3, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 235 DAY), '11111111-1'
     UNION ALL
-    SELECT 5, 'CITADO', 'ATENDIDO', NULL,
-           DATE_SUB(NOW(), INTERVAL 5 DAY), '11111111-1'
+    SELECT 3, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 196 DAY), '11111111-1'
     UNION ALL
-    -- Solicitud #6: EN_ESPERA → ANULADO con motivo (2 entradas)
-    SELECT 6, NULL, 'EN_ESPERA', NULL,
-           DATE_SUB(NOW(), INTERVAL 12 DAY), '11111111-1'
+    SELECT 3, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 140 DAY), '11111111-1'
     UNION ALL
-    SELECT 6, 'EN_ESPERA', 'ANULADO',
-           'Paciente desistió por motivos personales',
-           DATE_SUB(NOW(), INTERVAL 11 DAY), '11111111-1'
+    SELECT 3, 'ATENDIDO', 'DERIVADO', 'Derivado a red privada por convenio', DATE_SUB(NOW(), INTERVAL 137 DAY), '11111111-1'
+    UNION ALL
+    SELECT 4, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 176 DAY), '11111111-1'
+    UNION ALL
+    SELECT 4, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 147 DAY), '11111111-1'
+    UNION ALL
+    SELECT 5, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 147 DAY), '11111111-1'
+    UNION ALL
+    SELECT 5, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 142 DAY), '11111111-1'
+    UNION ALL
+    SELECT 6, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 301 DAY), '11111111-1'
+    UNION ALL
+    SELECT 6, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 288 DAY), '11111111-1'
+    UNION ALL
+    SELECT 6, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 266 DAY), '11111111-1'
+    UNION ALL
+    SELECT 7, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 201 DAY), '11111111-1'
+    UNION ALL
+    SELECT 7, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 164 DAY), '11111111-1'
+    UNION ALL
+    SELECT 7, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 123 DAY), '11111111-1'
+    UNION ALL
+    SELECT 7, 'ATENDIDO', 'DERIVADO', 'Derivado a hospital de mayor complejidad', DATE_SUB(NOW(), INTERVAL 122 DAY), '11111111-1'
+    UNION ALL
+    SELECT 8, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 245 DAY), '11111111-1'
+    UNION ALL
+    SELECT 8, 'EN_ESPERA', 'VENCIDO', NULL, DATE_SUB(NOW(), INTERVAL 136 DAY), '11111111-1'
+    UNION ALL
+    SELECT 9, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 71 DAY), '11111111-1'
+    UNION ALL
+    SELECT 9, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 59 DAY), '11111111-1'
+    UNION ALL
+    SELECT 9, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 4 DAY), '11111111-1'
+    UNION ALL
+    SELECT 9, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 0 DAY), '11111111-1'
+    UNION ALL
+    SELECT 10, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 400 DAY), '11111111-1'
+    UNION ALL
+    SELECT 10, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 392 DAY), '11111111-1'
+    UNION ALL
+    SELECT 11, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 49 DAY), '11111111-1'
+    UNION ALL
+    SELECT 12, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 391 DAY), '11111111-1'
+    UNION ALL
+    SELECT 12, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 355 DAY), '11111111-1'
+    UNION ALL
+    SELECT 12, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 344 DAY), '11111111-1'
+    UNION ALL
+    SELECT 12, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 329 DAY), '11111111-1'
+    UNION ALL
+    SELECT 13, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 117 DAY), '11111111-1'
+    UNION ALL
+    SELECT 13, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 81 DAY), '11111111-1'
+    UNION ALL
+    SELECT 13, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 24 DAY), '11111111-1'
+    UNION ALL
+    SELECT 14, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 301 DAY), '11111111-1'
+    UNION ALL
+    SELECT 14, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 263 DAY), '11111111-1'
+    UNION ALL
+    SELECT 14, 'CITADO', 'AUSENTE', NULL, DATE_SUB(NOW(), INTERVAL 217 DAY), '11111111-1'
+    UNION ALL
+    SELECT 15, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 349 DAY), '11111111-1'
+    UNION ALL
+    SELECT 15, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 319 DAY), '11111111-1'
+    UNION ALL
+    SELECT 15, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 270 DAY), '11111111-1'
+    UNION ALL
+    SELECT 16, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 183 DAY), '11111111-1'
+    UNION ALL
+    SELECT 16, 'EN_ESPERA', 'ANULADO', 'Paciente falleció antes de ser atendido', DATE_SUB(NOW(), INTERVAL 182 DAY), '11111111-1'
+    UNION ALL
+    SELECT 17, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 41 DAY), '11111111-1'
+    UNION ALL
+    SELECT 18, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 556 DAY), '11111111-1'
+    UNION ALL
+    SELECT 18, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 536 DAY), '11111111-1'
+    UNION ALL
+    SELECT 18, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 512 DAY), '11111111-1'
+    UNION ALL
+    SELECT 19, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 127 DAY), '11111111-1'
+    UNION ALL
+    SELECT 19, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 121 DAY), '11111111-1'
+    UNION ALL
+    SELECT 19, 'CITADO', 'ANULADO', 'Traslado de establecimiento por decisión familiar', DATE_SUB(NOW(), INTERVAL 108 DAY), '11111111-1'
+    UNION ALL
+    SELECT 20, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 26 DAY), '11111111-1'
+    UNION ALL
+    SELECT 21, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 173 DAY), '11111111-1'
+    UNION ALL
+    SELECT 21, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 141 DAY), '11111111-1'
+    UNION ALL
+    SELECT 21, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 124 DAY), '11111111-1'
+    UNION ALL
+    SELECT 22, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 291 DAY), '11111111-1'
+    UNION ALL
+    SELECT 22, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 285 DAY), '11111111-1'
+    UNION ALL
+    SELECT 23, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 596 DAY), '11111111-1'
+    UNION ALL
+    SELECT 23, 'EN_ESPERA', 'VENCIDO', NULL, DATE_SUB(NOW(), INTERVAL 474 DAY), '11111111-1'
+    UNION ALL
+    SELECT 24, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 418 DAY), '11111111-1'
+    UNION ALL
+    SELECT 24, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 413 DAY), '11111111-1'
+    UNION ALL
+    SELECT 24, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 383 DAY), '11111111-1'
+    UNION ALL
+    SELECT 25, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 254 DAY), '11111111-1'
+    UNION ALL
+    SELECT 25, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 231 DAY), '11111111-1'
+    UNION ALL
+    SELECT 25, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 208 DAY), '11111111-1'
+    UNION ALL
+    SELECT 25, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 198 DAY), '11111111-1'
+    UNION ALL
+    SELECT 26, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 518 DAY), '11111111-1'
+    UNION ALL
+    SELECT 26, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 481 DAY), '11111111-1'
+    UNION ALL
+    SELECT 26, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 420 DAY), '11111111-1'
+    UNION ALL
+    SELECT 27, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 5 DAY), '11111111-1'
+    UNION ALL
+    SELECT 28, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 613 DAY), '11111111-1'
+    UNION ALL
+    SELECT 28, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 593 DAY), '11111111-1'
+    UNION ALL
+    SELECT 28, 'CITADO', 'AUSENTE', NULL, DATE_SUB(NOW(), INTERVAL 551 DAY), '11111111-1'
+    UNION ALL
+    SELECT 29, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 239 DAY), '11111111-1'
+    UNION ALL
+    SELECT 29, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 214 DAY), '11111111-1'
+    UNION ALL
+    SELECT 29, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 193 DAY), '11111111-1'
+    UNION ALL
+    SELECT 30, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 328 DAY), '11111111-1'
+    UNION ALL
+    SELECT 30, 'EN_ESPERA', 'ANULADO', 'Paciente desistió por motivos personales', DATE_SUB(NOW(), INTERVAL 309 DAY), '11111111-1'
+    UNION ALL
+    SELECT 31, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 188 DAY), '11111111-1'
+    UNION ALL
+    SELECT 31, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 183 DAY), '11111111-1'
+    UNION ALL
+    SELECT 32, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 571 DAY), '11111111-1'
+    UNION ALL
+    SELECT 32, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 566 DAY), '11111111-1'
+    UNION ALL
+    SELECT 32, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 517 DAY), '11111111-1'
+    UNION ALL
+    SELECT 33, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 169 DAY), '11111111-1'
+    UNION ALL
+    SELECT 33, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 129 DAY), '11111111-1'
+    UNION ALL
+    SELECT 33, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 109 DAY), '11111111-1'
+    UNION ALL
+    SELECT 33, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 104 DAY), '11111111-1'
+    UNION ALL
+    SELECT 34, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 287 DAY), '11111111-1'
+    UNION ALL
+    SELECT 34, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 279 DAY), '11111111-1'
+    UNION ALL
+    SELECT 34, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 267 DAY), '11111111-1'
+    UNION ALL
+    SELECT 35, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 236 DAY), '11111111-1'
+    UNION ALL
+    SELECT 35, 'EN_ESPERA', 'ANULADO', 'Diagnóstico resuelto por otra vía', DATE_SUB(NOW(), INTERVAL 218 DAY), '11111111-1'
+    UNION ALL
+    SELECT 36, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 289 DAY), '11111111-1'
+    UNION ALL
+    SELECT 36, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 285 DAY), '11111111-1'
+    UNION ALL
+    SELECT 37, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 375 DAY), '11111111-1'
+    UNION ALL
+    SELECT 37, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 347 DAY), '11111111-1'
+    UNION ALL
+    SELECT 37, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 287 DAY), '11111111-1'
+    UNION ALL
+    SELECT 37, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 272 DAY), '11111111-1'
+    UNION ALL
+    SELECT 38, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 603 DAY), '11111111-1'
+    UNION ALL
+    SELECT 38, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 572 DAY), '11111111-1'
+    UNION ALL
+    SELECT 38, 'CITADO', 'AUSENTE', NULL, DATE_SUB(NOW(), INTERVAL 527 DAY), '11111111-1'
+    UNION ALL
+    SELECT 39, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 85 DAY), '11111111-1'
+    UNION ALL
+    SELECT 39, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 69 DAY), '11111111-1'
+    UNION ALL
+    SELECT 39, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 11 DAY), '11111111-1'
+    UNION ALL
+    SELECT 39, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 0 DAY), '11111111-1'
+    UNION ALL
+    SELECT 40, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 85 DAY), '11111111-1'
+    UNION ALL
+    SELECT 40, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 70 DAY), '11111111-1'
+    UNION ALL
+    SELECT 40, 'CITADO', 'ANULADO', 'Paciente falleció antes de ser atendido', DATE_SUB(NOW(), INTERVAL 61 DAY), '11111111-1'
+    UNION ALL
+    SELECT 41, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 166 DAY), '11111111-1'
+    UNION ALL
+    SELECT 41, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 137 DAY), '11111111-1'
+    UNION ALL
+    SELECT 42, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 315 DAY), '11111111-1'
+    UNION ALL
+    SELECT 42, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 306 DAY), '11111111-1'
+    UNION ALL
+    SELECT 42, 'CITADO', 'AUSENTE', NULL, DATE_SUB(NOW(), INTERVAL 282 DAY), '11111111-1'
+    UNION ALL
+    SELECT 43, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 327 DAY), '11111111-1'
+    UNION ALL
+    SELECT 43, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 311 DAY), '11111111-1'
+    UNION ALL
+    SELECT 43, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 263 DAY), '11111111-1'
+    UNION ALL
+    SELECT 43, 'ATENDIDO', 'DERIVADO', 'Derivado a hospital de mayor complejidad', DATE_SUB(NOW(), INTERVAL 262 DAY), '11111111-1'
+    UNION ALL
+    SELECT 44, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 58 DAY), '11111111-1'
+    UNION ALL
+    SELECT 45, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 581 DAY), '11111111-1'
+    UNION ALL
+    SELECT 45, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 564 DAY), '11111111-1'
+    UNION ALL
+    SELECT 45, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 535 DAY), '11111111-1'
+    UNION ALL
+    SELECT 46, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 187 DAY), '11111111-1'
+    UNION ALL
+    SELECT 46, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 163 DAY), '11111111-1'
+    UNION ALL
+    SELECT 46, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 120 DAY), '11111111-1'
+    UNION ALL
+    SELECT 46, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 109 DAY), '11111111-1'
+    UNION ALL
+    SELECT 47, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 48 DAY), '11111111-1'
+    UNION ALL
+    SELECT 48, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 353 DAY), '11111111-1'
+    UNION ALL
+    SELECT 48, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 335 DAY), '11111111-1'
+    UNION ALL
+    SELECT 48, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 296 DAY), '11111111-1'
+    UNION ALL
+    SELECT 48, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 286 DAY), '11111111-1'
+    UNION ALL
+    SELECT 49, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 349 DAY), '11111111-1'
+    UNION ALL
+    SELECT 49, 'EN_ESPERA', 'ANULADO', 'Paciente desistió por motivos personales', DATE_SUB(NOW(), INTERVAL 329 DAY), '11111111-1'
+    UNION ALL
+    SELECT 50, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 347 DAY), '11111111-1'
+    UNION ALL
+    SELECT 50, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 328 DAY), '11111111-1'
+    UNION ALL
+    SELECT 50, 'CITADO', 'AUSENTE', NULL, DATE_SUB(NOW(), INTERVAL 310 DAY), '11111111-1'
+    UNION ALL
+    SELECT 51, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 30 DAY), '11111111-1'
+    UNION ALL
+    SELECT 52, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 309 DAY), '11111111-1'
+    UNION ALL
+    SELECT 52, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 295 DAY), '11111111-1'
+    UNION ALL
+    SELECT 52, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 242 DAY), '11111111-1'
+    UNION ALL
+    SELECT 52, 'ATENDIDO', 'DERIVADO', 'Requiere atención en otra especialidad', DATE_SUB(NOW(), INTERVAL 241 DAY), '11111111-1'
+    UNION ALL
+    SELECT 53, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 16 DAY), '11111111-1'
+    UNION ALL
+    SELECT 54, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 296 DAY), '11111111-1'
+    UNION ALL
+    SELECT 54, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 274 DAY), '11111111-1'
+    UNION ALL
+    SELECT 55, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 238 DAY), '11111111-1'
+    UNION ALL
+    SELECT 55, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 230 DAY), '11111111-1'
+    UNION ALL
+    SELECT 56, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 132 DAY), '11111111-1'
+    UNION ALL
+    SELECT 56, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 121 DAY), '11111111-1'
+    UNION ALL
+    SELECT 57, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 112 DAY), '11111111-1'
+    UNION ALL
+    SELECT 57, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 99 DAY), '11111111-1'
+    UNION ALL
+    SELECT 57, 'CITADO', 'AUSENTE', NULL, DATE_SUB(NOW(), INTERVAL 84 DAY), '11111111-1'
+    UNION ALL
+    SELECT 58, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 22 DAY), '11111111-1'
+    UNION ALL
+    SELECT 59, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 25 DAY), '11111111-1'
+    UNION ALL
+    SELECT 60, NULL, 'EN_ESPERA', NULL, DATE_SUB(NOW(), INTERVAL 489 DAY), '11111111-1'
+    UNION ALL
+    SELECT 60, 'EN_ESPERA', 'CITADO', NULL, DATE_SUB(NOW(), INTERVAL 450 DAY), '11111111-1'
+    UNION ALL
+    SELECT 60, 'CITADO', 'ATENDIDO', NULL, DATE_SUB(NOW(), INTERVAL 391 DAY), '11111111-1'
+    UNION ALL
+    SELECT 60, 'ATENDIDO', 'CERRADO', NULL, DATE_SUB(NOW(), INTERVAL 382 DAY), '11111111-1'
 ) AS h
 WHERE NOT EXISTS (SELECT 1 FROM historial_estados);
